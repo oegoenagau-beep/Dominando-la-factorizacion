@@ -62,10 +62,12 @@ export default function Portada({ onComenzar, onIrAQuiz, onAbrirGlosario }) {
 
           {/* University Seal Card & Author Credits */}
           <div className="max-w-xl mx-auto p-4 sm:p-5 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-center gap-4 text-left">
-            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-900 via-sky-800 to-slate-900 p-2.5 flex items-center justify-center text-amber-400 shrink-0 shadow-inner">
-              <svg viewBox="0 0 40 40" className="w-full h-full" fill="currentColor">
-                <path d="M20 2L4 9v12c0 10.5 6.8 20.3 16 23 9.2-2.7 16-12.5 16-23V9L20 2zm0 6c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zm-6 24c-1.1 0-2-.9-2-2s.9-2 2-2h12c1.1 0 2 .9 2 2s-.9 2-2 2H14zm8-6h-4v-8h4v8z" />
-              </svg>
+            <div className="w-14 h-14 shrink-0 flex items-center justify-center">
+              <img
+                src="./logoUniversidad.png"
+                alt="Logo Universidad del Magdalena"
+                className="w-full h-full object-contain"
+              />
             </div>
             <div>
               <h4 className="text-sm font-bold text-slate-900 dark:text-white">
@@ -74,8 +76,8 @@ export default function Portada({ onComenzar, onIrAQuiz, onAbrirGlosario }) {
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 Proyecto pedagógico diseñado para estudiantes de cálculo, álgebra lineal e ingeniería.
               </p>
-              <p className="text-[11px] font-semibold text-sky-600 dark:text-sky-400 mt-1">
-                Autor: Docente & Desarrollador Web Senior • Licencia Académica MIT
+              <p className="text-[15px] font-semibold text-sky-600 dark:text-sky-400 mt-1">
+                Autor: Oscar Goenaga, Cod: 2023172030
               </p>
             </div>
           </div>

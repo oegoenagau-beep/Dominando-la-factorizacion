@@ -31,8 +31,12 @@ export default function Navbar({
           onClick={() => setVistaActual('portada')}
           className="flex items-center gap-3 cursor-pointer group"
         >
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-blue-700 flex items-center justify-center text-white shadow-md shadow-sky-500/20 group-hover:scale-105 transition-transform">
-            <GraduationCap className="w-6 h-6" />
+          <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 p-1 flex items-center justify-center shadow-md border border-slate-200 dark:border-slate-700 group-hover:scale-105 transition-transform shrink-0">
+            <img
+              src="./logoUniversidad.png"
+              alt="Logo Universidad"
+              className="w-full h-full object-contain"
+            />
           </div>
           <div>
             <div className="flex items-center gap-1.5">
