@@ -24,7 +24,7 @@ export default function Portada({ onComenzar, onIrAQuiz, onAbrirGlosario }) {
           <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 text-sky-800 dark:text-sky-300 text-xs sm:text-sm font-semibold mb-8 shadow-sm">
             <span className="w-2 h-2 rounded-full bg-sky-500 animate-ping" />
             <GraduationCap className="w-4 h-4 text-sky-600 dark:text-sky-400" />
-            <span>Universidad del Magdalena • Facultad de Ingeniería</span>
+            <span>Universidad del Magdalena • Facultad de Ciencias de la educación</span>
           </div>
 
           {/* Main Title */}
