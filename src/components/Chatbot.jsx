@@ -3,13 +3,15 @@ import {
   Bot,
   X,
   Send,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
   Sparkles,
   Lightbulb,
   HelpCircle,
   BookOpen,
-  MessageSquare,
-  ChevronDown,
-  Minimize2
+  MessageSquare
 } from 'lucide-react';
 import { identificarCaso, factorizarPasoAPaso, generarEjercicioAleatorio } from '../utils/factorizador';
 import { CASOS_FACTORIZACION } from '../data/casos';
@@ -25,7 +27,10 @@ export default function Chatbot() {
   ]);
   const [inputTexto, setInputTexto] = useState('');
   const [estaEscribiendo, setEstaEscribiendo] = useState(false);
+  const [escuchando, setEscuchando] = useState(false);
+  const [reproduciendoId, setReproduciendoId] = useState(null);
   const scrollRef = useRef(null);
+  const recognitionRef = useRef(null);
 
   // Auto-scroll al final del chat cuando se agreguen mensajes
   useEffect(() => {
@@ -33,6 +38,112 @@ export default function Chatbot() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [mensajes, estaEscribiendo]);
+
+  // Limpiar voz si se cierra el componente o la ventana
+  useEffect(() => {
+    return () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
+
+  // Función 1: Síntesis de voz (Text-to-Speech)
+  const alternarVoz = (id, texto) => {
+    if (!('speechSynthesis' in window)) {
+      alert('Tu navegador no tiene soporte nativo para síntesis de voz.');
+      return;
+    }
+
+    // Si ya está reproduciendo este mensaje, detenerlo (toggle)
+    if (reproduciendoId === id) {
+      window.speechSynthesis.cancel();
+      setReproduciendoId(null);
+      return;
+    }
+
+    // Cancelar cualquier locución anterior
+    window.speechSynthesis.cancel();
+
+    // Limpiar caracteres especiales de markdown para pronunciación natural
+    const textoLimpio = texto
+      .replace(/[*#`_~]/g, '')
+      .replace(/•/g, ',')
+      .replace(/\^2/g, ' al cuadrado ')
+      .replace(/\^3/g, ' al cubo ')
+      .replace(/²/g, ' al cuadrado ')
+      .replace(/³/g, ' al cubo ');
+
+    const utterance = new SpeechSynthesisUtterance(textoLimpio);
+    utterance.lang = 'es-ES'; // Español
+    utterance.rate = 1.0;     // Velocidad estándar
+    utterance.pitch = 1.0;
+
+    utterance.onend = () => {
+      setReproduciendoId(null);
+    };
+
+    utterance.onerror = () => {
+      setReproduciendoId(null);
+    };
+
+    setReproduciendoId(id);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Función 2: Reconocimiento de voz por micrófono (Speech-to-Text)
+  const alternarMicrofono = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert('Tu navegador no soporta entrada de voz directa por micrófono. Te recomendamos usar Google Chrome, Microsoft Edge o Safari.');
+      return;
+    }
+
+    if (escuchando) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setEscuchando(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'es-ES';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onstart = () => {
+        setEscuchando(true);
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript) {
+          setInputTexto((prev) => (prev ? `${prev} ${transcript}` : transcript));
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.warn('Error en reconocimiento de voz:', event.error);
+        setEscuchando(false);
+      };
+
+      recognition.onend = () => {
+        setEscuchando(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      console.error(err);
+      setEscuchando(false);
+    }
+  };
 
   // Respuestas del Motor Local Inteligente
   const responderLocalmente = (mensajeUsuario) => {
@@ -83,7 +194,6 @@ Recuerda contar primero cuántos términos tiene la expresión. Si tiene 2 térm
     }
 
     // 5. Análisis de expresión matemática introducida por el usuario
-    // Detectar patrones como x^2, x², +, -, etc.
     if (texto.includes('^') || texto.includes('²') || texto.includes('³') || /[a-z][0-9]/i.test(texto) || /[0-9][a-z]/i.test(texto)) {
       try {
         const limpia = mensajeUsuario.replace(/factoriza(r)?/i, '').replace(/resuelve/i, '').trim();
@@ -111,10 +221,10 @@ ${resolucion.comprobacion}`;
 
     // Respuesta por defecto
     return `Comprendo tu consulta. Como tu profesor tutor, puedo:
-1. **Identificar y resolver** cualquier expresión: escribe por ejemplo \`factoriza x^2 - 49\` o \`x^2 + 8x + 16\`.
+1. **Identificar y resolver** cualquier expresión: escribe o dicta por ejemplo \`factoriza x^2 - 49\` o \`x^2 + 8x + 16\`.
 2. **Explicar cualquiera de los 8 casos**: pide \`explícame trinomio ax^2 + bx + c\`.
-3. **Darte ejercicios nuevos**: escribe \`dame un ejercicio\`.
-4. **Enseñarte a identificar el caso**: escribe \`cómo identifico el caso\`.`;
+3. **Darte ejercicios nuevos**: pide \`dame un ejercicio\`.
+4. **Enseñarte a identificar el caso**: pregunta \`cómo identifico el caso\`.`;
   };
 
   const handleEnviarMensaje = async (e) => {
@@ -124,7 +234,6 @@ ${resolucion.comprobacion}`;
     const textoUsuario = inputTexto;
     setInputTexto('');
 
-    // Agregar mensaje del estudiante
     const nuevoMensajeUsuario = {
       id: Date.now(),
       remitente: 'usuario',
@@ -134,7 +243,6 @@ ${resolucion.comprobacion}`;
     setMensajes((prev) => [...prev, nuevoMensajeUsuario]);
     setEstaEscribiendo(true);
 
-    // Conexión en dos capas: Probar Modo IA (si VITE_API_URL está definida) o Motor Local
     const apiUrl = import.meta.env.VITE_API_URL;
     let respuestaFinal = '';
 
@@ -151,15 +259,12 @@ ${resolucion.comprobacion}`;
           const data = await res.json();
           respuestaFinal = data.respuesta || data.text || data.message;
         } else {
-          // Fallback automático al motor local sin error
           respuestaFinal = responderLocalmente(textoUsuario);
         }
       } catch (err) {
-        // Fallback al motor local
         respuestaFinal = responderLocalmente(textoUsuario);
       }
     } else {
-      // Simular breve tiempo de respuesta natural del tutor
       await new Promise((r) => setTimeout(r, 450));
       respuestaFinal = responderLocalmente(textoUsuario);
     }
@@ -177,7 +282,6 @@ ${resolucion.comprobacion}`;
 
   const enviarSugerencia = (texto) => {
     setInputTexto(texto);
-    // Enviar directo
     setTimeout(() => {
       const form = document.getElementById('form-chatbot');
       if (form) form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
@@ -186,7 +290,7 @@ ${resolucion.comprobacion}`;
 
   return (
     <>
-      {/* Floating Action Button (Always visible on all screens) */}
+      {/* Botón Flotante (Siempre visible en todas las pantallas) */}
       <div className="fixed bottom-6 right-6 z-50">
         {!abierto && (
           <button
@@ -201,10 +305,10 @@ ${resolucion.comprobacion}`;
         )}
       </div>
 
-      {/* Chat Window Modal */}
+      {/* Ventana de Chat */}
       {abierto && (
-        <div className="fixed bottom-6 right-6 z-50 w-[92vw] sm:w-[420px] h-[580px] max-h-[85vh] bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-fade-in">
-          {/* Chat Header */}
+        <div className="fixed bottom-6 right-6 z-50 w-[92vw] sm:w-[440px] h-[600px] max-h-[85vh] bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-fade-in">
+          {/* Header */}
           <div className="px-5 py-4 bg-gradient-to-r from-sky-600 to-blue-700 text-white flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
@@ -216,20 +320,23 @@ ${resolucion.comprobacion}`;
                 </h3>
                 <p className="text-[11px] text-sky-100 flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Motor Local Activo • Unimagdalena</span>
+                  <span>Audio & Motor Local Activos • Unimagdalena</span>
                 </p>
               </div>
             </div>
 
             <button
-              onClick={() => setAbierto(false)}
+              onClick={() => {
+                if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+                setAbierto(false);
+              }}
               className="p-1.5 rounded-lg hover:bg-white/20 text-white transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Quick Suggestions Chips */}
+          {/* Sugerencias Rápidas */}
           <div className="px-3 py-2 bg-slate-50 dark:bg-slate-950/60 border-b border-slate-200 dark:border-slate-800 flex gap-1.5 overflow-x-auto scrollbar-none shrink-0">
             {[
               '¿Cómo identifico el caso?',
@@ -249,10 +356,12 @@ ${resolucion.comprobacion}`;
             ))}
           </div>
 
-          {/* Messages Container */}
+          {/* Mensajes */}
           <div ref={scrollRef} className="flex-1 p-4 overflow-y-auto space-y-3">
             {mensajes.map((m) => {
               const esBot = m.remitente === 'bot';
+              const estaHablandoEste = reproduciendoId === m.id;
+
               return (
                 <div
                   key={m.id}
@@ -263,14 +372,45 @@ ${resolucion.comprobacion}`;
                       <Bot className="w-4 h-4" />
                     </div>
                   )}
-                  <div
-                    className={`max-w-[85%] rounded-2xl px-4 py-3 text-xs sm:text-sm leading-relaxed whitespace-pre-line ${
-                      esBot
-                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200'
-                        : 'bg-sky-600 text-white rounded-br-none'
-                    }`}
-                  >
-                    {m.texto}
+
+                  <div className="flex flex-col gap-1 max-w-[85%]">
+                    <div
+                      className={`rounded-2xl px-4 py-3 text-xs sm:text-sm leading-relaxed whitespace-pre-line ${
+                        esBot
+                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200'
+                          : 'bg-sky-600 text-white rounded-br-none'
+                      }`}
+                    >
+                      {m.texto}
+                    </div>
+
+                    {/* Botón de Escuchar Audio (Solo para mensajes del tutor) */}
+                    {esBot && (
+                      <div className="flex items-center gap-1.5 px-1">
+                        <button
+                          type="button"
+                          onClick={() => alternarVoz(m.id, m.texto)}
+                          className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md transition-all ${
+                            estaHablandoEste
+                              ? 'bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-300 font-bold'
+                              : 'text-slate-400 hover:text-sky-600 dark:hover:text-sky-400'
+                          }`}
+                          title={estaHablandoEste ? 'Detener voz' : 'Escuchar respuesta en voz alta'}
+                        >
+                          {estaHablandoEste ? (
+                            <>
+                              <VolumeX className="w-3.5 h-3.5 text-sky-600 animate-pulse" />
+                              <span>Detener audio</span>
+                            </>
+                          ) : (
+                            <>
+                              <Volume2 className="w-3.5 h-3.5" />
+                              <span>Escuchar</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -291,23 +431,42 @@ ${resolucion.comprobacion}`;
             )}
           </div>
 
-          {/* Chat Input Field */}
+          {/* Input & Botones de Audio */}
           <form
             id="form-chatbot"
             onSubmit={handleEnviarMensaje}
             className="p-3 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2 shrink-0"
           >
+            {/* Botón de Entrada por Micrófono */}
+            <button
+              type="button"
+              onClick={alternarMicrofono}
+              title={escuchando ? 'Detener dictado por voz' : 'Hablar por micrófono (Dictar pregunta)'}
+              className={`p-2.5 rounded-xl transition-all shrink-0 ${
+                escuchando
+                  ? 'bg-rose-500 text-white animate-pulse shadow-md shadow-rose-500/30'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400'
+              }`}
+            >
+              {escuchando ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </button>
+
             <input
               type="text"
               value={inputTexto}
               onChange={(e) => setInputTexto(e.target.value)}
-              placeholder="Escribe tu duda o expresión (ej: x^2 - 16)..."
-              className="flex-1 px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 text-xs sm:text-sm focus:outline-none focus:border-sky-500 transition-colors font-sans"
+              placeholder={escuchando ? 'Escuchando tu voz...' : 'Escribe o dicta tu duda...'}
+              className={`flex-1 px-4 py-2.5 rounded-xl border text-slate-900 dark:text-white placeholder:text-slate-400 text-xs sm:text-sm focus:outline-none transition-colors font-sans ${
+                escuchando
+                  ? 'bg-rose-50 dark:bg-rose-950/30 border-rose-300 dark:border-rose-700'
+                  : 'bg-slate-100 dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:border-sky-500'
+              }`}
             />
+
             <button
               type="submit"
               disabled={!inputTexto.trim()}
-              className="p-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-white transition-all shrink-0"
+              className="p-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-white transition-all shrink-0 shadow-md shadow-sky-600/20"
             >
               <Send className="w-4 h-4" />
             </button>
